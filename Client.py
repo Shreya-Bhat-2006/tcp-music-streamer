@@ -39,10 +39,9 @@ def fetch_song_list():
 class MusicClient(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("StreamFi")
+        self.title("🎵 StreamFi")
         self.geometry("900x620")
         self.resizable(False, False)
-
         self.buffer       = deque()
         self.is_streaming = False
         self.is_playing   = False
@@ -54,7 +53,6 @@ class MusicClient(ctk.CTk):
         self.current_song = None
         self.song_list    = []
         self.stream_start = None
-
         self.show_home()
 
     def clear(self):
@@ -65,16 +63,12 @@ class MusicClient(ctk.CTk):
         sidebar = ctk.CTkFrame(parent, width=220, corner_radius=0, fg_color="#121212")
         sidebar.pack(side="left", fill="y")
         sidebar.pack_propagate(False)
-        ctk.CTkLabel(sidebar, text="??", font=ctk.CTkFont(size=40)).pack(pady=(40,4))
-        ctk.CTkLabel(sidebar, text="StreamFi",
-                     font=ctk.CTkFont(size=22, weight="bold"), text_color="white").pack()
-        ctk.CTkLabel(sidebar, text="Online Music Streamer",
-                     font=ctk.CTkFont(size=11), text_color="gray").pack(pady=(2,40))
-        for label, cmd in [("??  Home", self.show_home), ("??  Library", self.show_library)]:
-            ctk.CTkButton(sidebar, text=label, anchor="w",
-                          fg_color="transparent", hover_color="#1e1e1e",
-                          font=ctk.CTkFont(size=13), height=40,
-                          command=cmd).pack(fill="x", padx=10, pady=2)
+        ctk.CTkLabel(sidebar, text="🎵", font=ctk.CTkFont(size=40)).pack(pady=(40,4))
+        ctk.CTkLabel(sidebar, text="StreamFi", font=ctk.CTkFont(size=22, weight="bold"), text_color="white").pack()
+        ctk.CTkLabel(sidebar, text="Online Music Streamer", font=ctk.CTkFont(size=11), text_color="gray").pack(pady=(2,40))
+        for label, cmd in [("🏠  Home", self.show_home), ("🎵  Library", self.show_library)]:
+            ctk.CTkButton(sidebar, text=label, anchor="w", fg_color="transparent", hover_color="#1e1e1e",
+                          font=ctk.CTkFont(size=13), height=40, command=cmd).pack(fill="x", padx=10, pady=2)
         return sidebar
 
     def show_home(self):
@@ -83,28 +77,23 @@ class MusicClient(ctk.CTk):
         self._sidebar(self)
         main = ctk.CTkFrame(self, fg_color="#181818", corner_radius=0)
         main.pack(side="left", fill="both", expand=True)
-        ctk.CTkLabel(main, text="Welcome to StreamFi",
-                     font=ctk.CTkFont(size=28, weight="bold"), text_color="white").pack(pady=(50,8))
-        ctk.CTkLabel(main, text="Stream music in real-time over TCP",
-                     font=ctk.CTkFont(size=14), text_color="gray").pack()
+        ctk.CTkLabel(main, text="Welcome to StreamFi", font=ctk.CTkFont(size=28, weight="bold"), text_color="white").pack(pady=(50,8))
+        ctk.CTkLabel(main, text="Stream music in real-time over TCP", font=ctk.CTkFont(size=14), text_color="gray").pack()
         cards = ctk.CTkFrame(main, fg_color="transparent")
         cards.pack(pady=40)
         for icon, title, desc in [
-            ("??", "Real-Time\nStreaming", "Audio streamed live\nover TCP"),
-            ("??", "Buffer\nManagement", "Smooth playback\nwith smart buffering"),
-            ("??", "QoS\nMetrics", "Latency & packet\nloss tracking"),
+            ("🔊", "Real-Time\nStreaming", "Audio streamed live\nover TCP"),
+            ("📦", "Buffer\nManagement", "Smooth playback\nwith smart buffering"),
+            ("📊", "QoS\nMetrics", "Latency and packet\nloss tracking"),
         ]:
             card = ctk.CTkFrame(cards, width=180, height=160, corner_radius=16, fg_color="#282828")
             card.pack(side="left", padx=12)
             card.pack_propagate(False)
             ctk.CTkLabel(card, text=icon, font=ctk.CTkFont(size=32)).pack(pady=(20,4))
-            ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=13, weight="bold"),
-                         text_color="white").pack()
-            ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(size=11),
-                         text_color="gray").pack(pady=(4,0))
-        ctk.CTkButton(main, text="Browse Library  ?", command=self.show_library,
-                      width=180, height=44, corner_radius=22,
-                      font=ctk.CTkFont(size=14, weight="bold")).pack(pady=20)
+            ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=13, weight="bold"), text_color="white").pack()
+            ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(size=11), text_color="gray").pack(pady=(4,0))
+        ctk.CTkButton(main, text="Browse Library  →", command=self.show_library,
+                      width=180, height=44, corner_radius=22, font=ctk.CTkFont(size=14, weight="bold")).pack(pady=20)
 
     def show_library(self):
         self._stop_stream()
@@ -112,29 +101,23 @@ class MusicClient(ctk.CTk):
         self._sidebar(self)
         main = ctk.CTkFrame(self, fg_color="#181818", corner_radius=0)
         main.pack(side="left", fill="both", expand=True)
-        ctk.CTkLabel(main, text="Your Library",
-                     font=ctk.CTkFont(size=24, weight="bold"), text_color="white").pack(anchor="w", padx=30, pady=(30,4))
-        ctk.CTkLabel(main, text="Click a song to start streaming",
-                     font=ctk.CTkFont(size=12), text_color="gray").pack(anchor="w", padx=30)
+        ctk.CTkLabel(main, text="Your Library", font=ctk.CTkFont(size=24, weight="bold"), text_color="white").pack(anchor="w", padx=30, pady=(30,4))
+        ctk.CTkLabel(main, text="Click a song to start streaming", font=ctk.CTkFont(size=12), text_color="gray").pack(anchor="w", padx=30)
         scroll = ctk.CTkScrollableFrame(main, fg_color="transparent")
         scroll.pack(fill="both", expand=True, padx=20, pady=16)
         songs = fetch_song_list()
         self.song_list = songs
         if not songs:
-            ctk.CTkLabel(scroll, text="No songs found. Is the server running?",
-                         text_color="gray").pack(pady=40)
+            ctk.CTkLabel(scroll, text="No songs found. Is the server running?", text_color="gray").pack(pady=40)
         else:
             for i, song in enumerate(songs):
                 row = ctk.CTkFrame(scroll, fg_color="#282828", corner_radius=12, height=64)
                 row.pack(fill="x", pady=4)
                 row.pack_propagate(False)
-                ctk.CTkLabel(row, text=f"  {i+1}", font=ctk.CTkFont(size=13),
-                             text_color="gray", width=36).pack(side="left", padx=(12,0))
-                ctk.CTkLabel(row, text="??", font=ctk.CTkFont(size=20)).pack(side="left", padx=8)
-                ctk.CTkLabel(row, text=song.replace(".wav",""),
-                             font=ctk.CTkFont(size=14, weight="bold"),
-                             text_color="white").pack(side="left")
-                ctk.CTkButton(row, text="? Play", width=90, height=34, corner_radius=17,
+                ctk.CTkLabel(row, text=f"  {i+1}", font=ctk.CTkFont(size=13), text_color="gray", width=36).pack(side="left", padx=(12,0))
+                ctk.CTkLabel(row, text="🎵", font=ctk.CTkFont(size=20)).pack(side="left", padx=8)
+                ctk.CTkLabel(row, text=song.replace(".wav",""), font=ctk.CTkFont(size=14, weight="bold"), text_color="white").pack(side="left")
+                ctk.CTkButton(row, text="▶ Play", width=90, height=34, corner_radius=17,
                               font=ctk.CTkFont(size=12, weight="bold"),
                               command=lambda s=song: self.show_player(s)).pack(side="right", padx=16)
 
@@ -147,41 +130,29 @@ class MusicClient(ctk.CTk):
         art = ctk.CTkFrame(main, width=180, height=180, corner_radius=16, fg_color="#282828")
         art.pack(pady=(40,16))
         art.pack_propagate(False)
-        ctk.CTkLabel(art, text="??", font=ctk.CTkFont(size=72)).pack(expand=True)
-        ctk.CTkLabel(main, text=song.replace(".wav",""),
-                     font=ctk.CTkFont(size=22, weight="bold"), text_color="white").pack()
-        ctk.CTkLabel(main, text="StreamFi Radio",
-                     font=ctk.CTkFont(size=13), text_color="gray").pack(pady=(2,16))
+        ctk.CTkLabel(art, text="🎵", font=ctk.CTkFont(size=72)).pack(expand=True)
+        ctk.CTkLabel(main, text=song.replace(".wav",""), font=ctk.CTkFont(size=22, weight="bold"), text_color="white").pack()
+        ctk.CTkLabel(main, text="StreamFi Radio", font=ctk.CTkFont(size=13), text_color="gray").pack(pady=(2,16))
         self.progress = ctk.CTkProgressBar(main, width=400, height=6, corner_radius=3)
         self.progress.set(0)
         self.progress.pack(pady=(0,16))
         ctrl = ctk.CTkFrame(main, fg_color="transparent")
         ctrl.pack()
-        ctk.CTkButton(ctrl, text="?", command=self.prev_song,
-                      width=54, height=46, corner_radius=23,
-                      fg_color="#333", hover_color="#444",
-                      font=ctk.CTkFont(size=18)).grid(row=0, column=0, padx=6)
-        self.play_btn = ctk.CTkButton(ctrl, text="?  Play", command=self.toggle_play,
-                                      width=130, height=46, corner_radius=23,
-                                      font=ctk.CTkFont(size=15, weight="bold"))
+        ctk.CTkButton(ctrl, text="⏮", command=self.prev_song, width=54, height=46, corner_radius=23,
+                      fg_color="#333", hover_color="#444", font=ctk.CTkFont(size=18)).grid(row=0, column=0, padx=6)
+        self.play_btn = ctk.CTkButton(ctrl, text="▶  Play", command=self.toggle_play,
+                                      width=130, height=46, corner_radius=23, font=ctk.CTkFont(size=15, weight="bold"))
         self.play_btn.grid(row=0, column=1, padx=6)
-        ctk.CTkButton(ctrl, text="?  Stop", command=self.stop_audio,
-                      width=110, height=46, corner_radius=23,
-                      fg_color="#e53e3e", hover_color="#c53030",
-                      font=ctk.CTkFont(size=15, weight="bold")).grid(row=0, column=2, padx=6)
-        ctk.CTkButton(ctrl, text="?", command=self.next_song,
-                      width=54, height=46, corner_radius=23,
-                      fg_color="#333", hover_color="#444",
-                      font=ctk.CTkFont(size=18)).grid(row=0, column=3, padx=6)
-        self.status_label = ctk.CTkLabel(main, text="Ready to stream",
-                                         font=ctk.CTkFont(size=12), text_color="gray")
+        ctk.CTkButton(ctrl, text="⏹  Stop", command=self.stop_audio, width=110, height=46, corner_radius=23,
+                      fg_color="#e53e3e", hover_color="#c53030", font=ctk.CTkFont(size=15, weight="bold")).grid(row=0, column=2, padx=6)
+        ctk.CTkButton(ctrl, text="⏭", command=self.next_song, width=54, height=46, corner_radius=23,
+                      fg_color="#333", hover_color="#444", font=ctk.CTkFont(size=18)).grid(row=0, column=3, padx=6)
+        self.status_label = ctk.CTkLabel(main, text="Ready to stream", font=ctk.CTkFont(size=12), text_color="gray")
         self.status_label.pack(pady=12)
         qos_frame = ctk.CTkFrame(main, corner_radius=12, fg_color="#282828", width=440)
         qos_frame.pack(pady=8, padx=30, fill="x")
-        ctk.CTkLabel(qos_frame, text="QoS Report",
-                     font=ctk.CTkFont(size=13, weight="bold"), text_color="gray").pack(anchor="w", padx=16, pady=(10,4))
-        self.qos_box = ctk.CTkTextbox(qos_frame, height=100,
-                                      font=ctk.CTkFont(family="Courier", size=12),
+        ctk.CTkLabel(qos_frame, text="QoS Report", font=ctk.CTkFont(size=13, weight="bold"), text_color="gray").pack(anchor="w", padx=16, pady=(10,4))
+        self.qos_box = ctk.CTkTextbox(qos_frame, height=100, font=ctk.CTkFont(family="Courier", size=12),
                                       corner_radius=8, fg_color="#1e1e1e", state="disabled")
         self.qos_box.pack(fill="x", padx=16, pady=(0,12))
         self.after(300, lambda: self.start_stream(song))
@@ -220,7 +191,7 @@ class MusicClient(ctk.CTk):
             self.stream_start = time.time()
             self.progress.set(0)
             self.qos = QoS()
-            self.play_btn.configure(text="?  Pause")
+            self.play_btn.configure(text="⏸  Pause")
             self.set_status("Streaming...", "#22c55e")
             threading.Thread(target=self.receive_stream, daemon=True).start()
             threading.Thread(target=self.play_audio,    daemon=True).start()
@@ -275,17 +246,17 @@ class MusicClient(ctk.CTk):
             return
         if self.is_playing:
             self.is_playing = False
-            self.play_btn.configure(text="?  Play")
+            self.play_btn.configure(text="▶  Play")
             self.set_status("Paused", "orange")
         else:
             self.open_audio_stream()
             self.is_playing = True
-            self.play_btn.configure(text="?  Pause")
+            self.play_btn.configure(text="⏸  Pause")
             self.set_status("Streaming...", "#22c55e")
 
     def stop_audio(self):
         self._stop_stream()
-        try: self.play_btn.configure(text="?  Play")
+        try: self.play_btn.configure(text="▶  Play")
         except: pass
         try: self.progress.set(0)
         except: pass
