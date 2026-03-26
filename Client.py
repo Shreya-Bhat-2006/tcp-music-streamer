@@ -5,7 +5,7 @@ from collections import deque
 import pyaudio
 from qos import QoS
 
-SERVER      = "127.0.0.1"
+SERVER      = "192.168.56.1"
 PORT        = 5000
 CHUNK       = 4096
 HEADER_FMT  = "I d"
