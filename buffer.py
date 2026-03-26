@@ -72,3 +72,8 @@ class Buffer:
         # Lock for safe read
         with self.lock:
             return len(self.buffer)
+
+
+            #bufffer overflow  is  handled in  client.py
+          """  while len(self.buffer) >= MAX_BUFFER and self.is_streaming:
+            time.sleep(0.05) """
