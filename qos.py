@@ -20,8 +20,8 @@ class QoS:
     def get_report(self):
         duration = time.time() - self.start_time
         total = self.packets_received + self.packets_lost
-        loss_pct = (self.packets_lost / total * 100) if total > 0 else 0
-        avg_latency = (sum(self.latencies) / len(self.latencies) * 1000) if self.latencies else 0
+        loss_pct = (self.packets_lost / total * 100) if total > 0 else 0  # packet loss % — shows how many packets were lost during streaming
+        avg_latency = (sum(self.latencies) / len(self.latencies) * 1000) if self.latencies else 0  # average time taken for each packet to travel from server to client
 
         return (
             f"Packets received : {self.packets_received}\n"
