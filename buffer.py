@@ -75,5 +75,5 @@ class Buffer:
 
 
             #bufffer overflow  is  handled in  client.py
-          """  while len(self.buffer) >= MAX_BUFFER and self.is_streaming:
-            time.sleep(0.05) """
+          # while len(self.buffer) >= MAX_BUFFER and self.is_streaming:
+           # time.sleep(0.05) """
