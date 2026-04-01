@@ -10,7 +10,7 @@ PORT        = 5000
 CHUNK       = 4096
 HEADER_FMT  = "I d"
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
-MAX_BUFFER  = 5
+MAX_BUFFER  = 5  # default, adjusted dynamically based on latency
 CACHE_DIR   = "cache"  # folder to store cached songs locally on client
 
 # Create cache folder if it doesn't exist on this machine
@@ -44,10 +44,29 @@ def fetch_song_list():
 
 def is_cached(song):
     # Check if song already exists in local cache folder
-    return os.path.exists(os.path.join(CACHE_DIR, song))
+    return os.path.exists(os.path.join(CACHE_DIR, song + ".raw"))
+
+def is_fully_cached(song):
+    # Fully cached means .raw exists but no .meta file
+    return is_cached(song) and not os.path.exists(os.path.join(CACHE_DIR, song + ".meta"))
+
+def get_cached_frames(song):
+    meta = os.path.join(CACHE_DIR, song + ".meta")
+    try:
+        return int(open(meta).read().strip())
+    except:
+        return 0
+
+def save_meta(song, frames):
+    with open(os.path.join(CACHE_DIR, song + ".meta"), "w") as f:
+        f.write(str(frames))
+
+def clear_meta(song):
+    try: os.remove(os.path.join(CACHE_DIR, song + ".meta"))
+    except: pass
 
 def get_cache_path(song):
-    return os.path.join(CACHE_DIR, song)
+    return os.path.join(CACHE_DIR, song + ".raw")  # raw PCM data
 
 class MusicClient(ctk.CTk):
     def __init__(self):
@@ -68,6 +87,8 @@ class MusicClient(ctk.CTk):
         self.song_list    = []
         self.stream_start = None
         self.cache_writer = None
+        self._qos_shown   = False
+        self.max_buffer   = MAX_BUFFER  # dynamically adjusted based on latency
         self.show_home()
 
     def clear(self):
@@ -138,7 +159,7 @@ class MusicClient(ctk.CTk):
                               font=ctk.CTkFont(size=12, weight="bold"),
                               command=lambda s=song: self.show_player(s)).pack(side="right", padx=16)
 
-    def show_player(self, song):
+    def show_player(self, song, prev_qos=None, prev_name=None):
         self.clear()
         self.current_song = song
         self._sidebar(self)
@@ -160,18 +181,23 @@ class MusicClient(ctk.CTk):
         self.play_btn = ctk.CTkButton(ctrl, text="▶  Play", command=self.toggle_play,
                                       width=130, height=46, corner_radius=23, font=ctk.CTkFont(size=15, weight="bold"))
         self.play_btn.grid(row=0, column=1, padx=6)
-        ctk.CTkButton(ctrl, text="⏹  Stop", command=self.stop_audio, width=110, height=46, corner_radius=23,
-                      fg_color="#e53e3e", hover_color="#c53030", font=ctk.CTkFont(size=15, weight="bold")).grid(row=0, column=2, padx=6)
         ctk.CTkButton(ctrl, text="⏭", command=self.next_song, width=54, height=46, corner_radius=23,
-                      fg_color="#333", hover_color="#444", font=ctk.CTkFont(size=18)).grid(row=0, column=3, padx=6)
+                      fg_color="#333", hover_color="#444", font=ctk.CTkFont(size=18)).grid(row=0, column=2, padx=6)
         self.status_label = ctk.CTkLabel(main, text="Ready to stream", font=ctk.CTkFont(size=12), text_color="gray")
         self.status_label.pack(pady=12)
         qos_frame = ctk.CTkFrame(main, corner_radius=12, fg_color="#282828", width=440)
         qos_frame.pack(pady=8, padx=30, fill="x")
-        ctk.CTkLabel(qos_frame, text="QoS Report", font=ctk.CTkFont(size=13, weight="bold"), text_color="gray").pack(anchor="w", padx=16, pady=(10,4))
+        qos_title = f"QoS Report — {prev_name.replace('.wav','')}" if prev_name else "QoS Report"
+        ctk.CTkLabel(qos_frame, text=qos_title,
+                     font=ctk.CTkFont(size=13, weight="bold"), text_color="gray").pack(anchor="w", padx=16, pady=(10,4))
         self.qos_box = ctk.CTkTextbox(qos_frame, height=100, font=ctk.CTkFont(family="Courier", size=12),
                                       corner_radius=8, fg_color="#1e1e1e", state="disabled")
         self.qos_box.pack(fill="x", padx=16, pady=(0,12))
+        # Show previous song's QoS report if available
+        if prev_qos and prev_name:
+            self.qos_box.configure(state="normal")
+            self.qos_box.insert("end", f"Song: {prev_name.replace('.wav','')}\n{prev_qos.get_report()}")
+            self.qos_box.configure(state="disabled")
         self.after(300, lambda: self.start_stream(song))
 
     def _stop_stream(self):
@@ -181,12 +207,20 @@ class MusicClient(ctk.CTk):
         self.buffer.clear()
         try: self.sock.close()
         except: pass
-
     def _stop_playback_only(self):
         # Stop audio only — keep download running in background
         self.is_streaming = False
         self.is_playing   = False
         self.buffer.clear()
+
+    def _adjust_buffer(self, latency_ms):
+        # Adaptive buffer size based on measured latency
+        if latency_ms < 50:
+            self.max_buffer = 2   # low latency — small buffer, less delay
+        elif latency_ms < 150:
+            self.max_buffer = 5   # medium latency — default buffer
+        else:
+            self.max_buffer = 10  # high latency — large buffer to prevent stutters
 
     def open_audio_stream(self):
         if self.stream:
@@ -198,48 +232,64 @@ class MusicClient(ctk.CTk):
             output=True, frames_per_buffer=CHUNK)
 
     def start_stream(self, song):
-        # Check cache first — if song already downloaded, play locally without hitting server
-        if is_cached(song):
-            self.set_status("Playing from cache 💾", "#22c55e")
-            self.play_btn.configure(text="⏸  Pause")
+        # Check if fully cached — play entirely from local file
+        if is_fully_cached(song):
+            self.set_status("Playing from cache \U0001f4be", "#22c55e")
+            self.play_btn.configure(text="\u23f8  Pause")
             self.is_streaming = True
             self.is_playing   = True
             self.stream_start = time.time()
-            self.qos = QoS()
+            self.qos          = QoS()
+            self._qos_shown   = False
             threading.Thread(target=self.play_from_cache, args=(song,), daemon=True).start()
             threading.Thread(target=self.update_progress, daemon=True).start()
             return True
 
-        # Not cached — connect to server via TCP and stream
+        # Check if partially cached — play cached part then resume from server
+        cached_frames = get_cached_frames(song) if is_cached(song) else 0
+
         try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP socket — SOCK_STREAM ensures reliable ordered delivery with automatic retransmission
-            self.sock.connect((SERVER, PORT))
-            self.sock.send(song.encode())
-            status = recv_exact(self.sock, 5)
+            new_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            new_sock.connect((SERVER, PORT))
+
+            if cached_frames > 0:
+                # Request only the remaining part from server
+                new_sock.send(f"STREAM_FROM {song} {cached_frames}".encode())
+            else:
+                new_sock.send(song.encode())
+
+            status = recv_exact(new_sock, 5)
             if status == b"ERROR":
                 messagebox.showerror("Error", "Song not found on server")
                 return False
-            props = recv_exact(self.sock, 8)
+
+            props = recv_exact(new_sock, 8)
             self.channels, self.sampwidth, self.rate = struct.unpack("H H I", props)
             self.open_audio_stream()
             self.buffer.clear()
             self.is_streaming   = True
             self.is_playing     = True
-            self.is_downloading = True  # background download starts
+            self.is_downloading = True
             self.stream_start   = time.time()
             self.progress.set(0)
-            self.qos = QoS()
-            # Open cache file to save song while streaming — next time it plays from cache
-            local_sock        = self.sock
-            local_cache_writer = wave.open(get_cache_path(song), "wb")
-            local_cache_writer.setnchannels(self.channels)
-            local_cache_writer.setsampwidth(self.sampwidth)
-            local_cache_writer.setframerate(self.rate)
+            self.qos          = QoS()
+            self._qos_shown   = False
+            self.sock = new_sock
+
+            # Open raw cache file — append if partial, new if fresh
+            if cached_frames > 0:
+                local_cache_writer = open(get_cache_path(song), "ab")  # append raw PCM
+                self.set_status("Resuming from cache \U0001f4be...", "#22c55e")
+            else:
+                local_cache_writer = open(get_cache_path(song), "wb")  # new raw PCM file
+                self.set_status("Streaming...", "#22c55e")
+
             self.cache_writer = local_cache_writer
             self.play_btn.configure(text="\u23f8  Pause")
-            self.set_status("Streaming...", "#22c55e")
-            threading.Thread(target=self.receive_stream, args=(local_sock, local_cache_writer, song), daemon=True).start()
-            threading.Thread(target=self.play_audio,    daemon=True).start()
+
+            threading.Thread(target=self.play_partial_then_stream,
+                             args=(song, cached_frames, new_sock, local_cache_writer), daemon=True).start()
+            threading.Thread(target=self.play_audio, daemon=True).start()
             threading.Thread(target=self.update_progress, daemon=True).start()
             return True
         except Exception as e:
@@ -247,34 +297,52 @@ class MusicClient(ctk.CTk):
             return False
 
     def play_from_cache(self, song):
-        # Play audio directly from cached WAV file — no server request needed
+        # Play audio directly from cached raw PCM file — no server request needed
         try:
-            wf = wave.open(get_cache_path(song), "rb")
-            self.channels  = wf.getnchannels()
-            self.sampwidth = wf.getsampwidth()
-            self.rate      = wf.getframerate()
-            self.open_audio_stream()
-            while self.is_streaming:
-                data = wf.readframes(CHUNK)
-                if not data:
-                    break
-                if self.is_playing:
-                    self.stream.write(data)
-                    self.qos.packet_received(0)  # latency 0 since playing locally from cache
-                else:
-                    time.sleep(0.01)
-            wf.close()
+            with open(get_cache_path(song), "rb") as f:
+                self.open_audio_stream()
+                while self.is_streaming:
+                    data = f.read(CHUNK * self.channels * self.sampwidth)
+                    if not data:
+                        break
+                    if self.is_playing:
+                        self.stream.write(data)
+                        self.qos.packet_received(0)
+                    else:
+                        time.sleep(0.01)
         except Exception:
             pass
         self.is_streaming = False
-        self.after(0, self.show_qos)
 
-    def receive_stream(self, sock, cache_writer, song):
+    def play_partial_then_stream(self, song, cached_frames, sock, cache_writer):
+        # Step 1: Play cached raw PCM portion first
+        if cached_frames > 0:
+            try:
+                with open(get_cache_path(song), "rb") as f:
+                    self.open_audio_stream()
+                    bytes_to_play = cached_frames * self.channels * self.sampwidth
+                    bytes_played  = 0
+                    while self.is_streaming and bytes_played < bytes_to_play:
+                        chunk = f.read(CHUNK * self.channels * self.sampwidth)
+                        if not chunk:
+                            break
+                        if self.is_playing:
+                            self.buffer.append(chunk)
+                            bytes_played += len(chunk)
+                        else:
+                            time.sleep(0.01)
+            except Exception:
+                pass
+
+        # Step 2: Continue streaming remaining from server
+        self.receive_stream(sock, cache_writer, song, start_frames=cached_frames)
+
+    def receive_stream(self, sock, cache_writer, song, start_frames=0):
         stream_complete = False
+        frames_received = start_frames
         try:
             while True:
-                # Back-pressure: pause if buffer full and playback is active
-                while self.is_streaming and len(self.buffer) >= MAX_BUFFER:
+                while self.is_streaming and len(self.buffer) >= self.max_buffer:
                     time.sleep(0.05)
                 raw = recv_exact(sock, HEADER_SIZE)
                 if raw[:9] == b"ENDSTREAM":
@@ -282,31 +350,30 @@ class MusicClient(ctk.CTk):
                     break
                 seq, send_time = struct.unpack(HEADER_FMT, raw)
                 latency = time.time() - send_time
+                self._adjust_buffer(latency * 1000)  # adjust buffer based on current latency
                 length  = struct.unpack("I", recv_exact(sock, 4))[0]
                 data    = recv_exact(sock, length)
-                # Only add to buffer if this is still the active song
                 if self.is_streaming:
                     self.buffer.append(data)
                 if self.qos:
                     self.qos.packet_received(latency)
-                # Always save to cache regardless of playback state
-                try: cache_writer.writeframes(data)
+                # Save raw PCM to cache
+                try:
+                    cache_writer.write(data)
+                    frames_received += CHUNK
+                    save_meta(song, frames_received)
                 except: pass
         except Exception:
             pass
-        # Close cache — keep if complete, delete if not
         try: cache_writer.close()
         except: pass
-        if not stream_complete:
-            try: os.remove(get_cache_path(song))
-            except: pass
+        if stream_complete:
+            clear_meta(song)  # remove .meta — song is fully cached now
         try: sock.close()
         except: pass
-        # Only update UI if this is still the active song
         if self.current_song == song:
             self.is_downloading = False
             self.is_streaming   = False
-            self.after(0, self.show_qos)
 
     def play_audio(self):
         while self.is_streaming or self.buffer:
@@ -327,8 +394,18 @@ class MusicClient(ctk.CTk):
             time.sleep(0.5)
 
     def toggle_play(self):
-        if not self.is_streaming:
+        if not self.is_streaming and not self.is_downloading:
+            # Fully stopped — start fresh stream
             self.start_stream(self.current_song)
+            return
+        if not self.is_streaming and self.is_downloading:
+            # Background download running — just resume playback
+            self.is_streaming = True
+            self.is_playing   = True
+            self.open_audio_stream()
+            self.play_btn.configure(text="⏸  Pause")
+            self.set_status("Streaming...", "#22c55e")
+            threading.Thread(target=self.play_audio, daemon=True).start()
             return
         if self.is_playing:
             self.is_playing = False
@@ -347,7 +424,8 @@ class MusicClient(ctk.CTk):
         try: self.progress.set(0)
         except: pass
         self.set_status("Stopped — downloading in background...", "orange")
-        if self.qos:
+        if self.qos and not self._qos_shown:
+            self._qos_shown = True
             self.show_qos()
 
     def set_status(self, text, color="gray"):
@@ -359,7 +437,8 @@ class MusicClient(ctk.CTk):
         try:
             self.qos_box.configure(state="normal")
             self.qos_box.delete("1.0", "end")
-            self.qos_box.insert("end", self.qos.get_report())
+            song_name = self.current_song.replace(".wav","") if self.current_song else "Unknown"
+            self.qos_box.insert("end", f"Song: {song_name}\n{self.qos.get_report()}")
             self.qos_box.configure(state="disabled")
             self.set_status("Stream ended", "gray")
             self.progress.set(1)
@@ -371,8 +450,10 @@ class MusicClient(ctk.CTk):
         if idx == 0:
             messagebox.showinfo("StreamFi", "No previous song available.")
             return
+        prev_qos  = self.qos
+        prev_name = self.current_song
         self._stop_stream()
-        self.show_player(self.song_list[idx - 1])
+        self.show_player(self.song_list[idx - 1], prev_qos=prev_qos, prev_name=prev_name)
 
     def next_song(self):
         if not self.song_list: return
@@ -380,8 +461,10 @@ class MusicClient(ctk.CTk):
         if idx >= len(self.song_list) - 1:
             messagebox.showinfo("StreamFi", "No next song available.")
             return
+        prev_qos  = self.qos
+        prev_name = self.current_song
         self._stop_stream()
-        self.show_player(self.song_list[idx + 1])
+        self.show_player(self.song_list[idx + 1], prev_qos=prev_qos, prev_name=prev_name)
 
     def close(self):
         self._stop_stream()

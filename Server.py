@@ -27,8 +27,16 @@ def handle_client(client_socket, addr):
             client_socket.sendall(struct.pack("I", len(payload)) + payload)
             return
 
-        # Stream request
-        filename = f"{SONGS_DIR}/{request}"
+        # Partial stream request — STREAM_FROM <song> <frame_offset>
+        if request.startswith("STREAM_FROM "):
+            parts = request.split(" ", 2)
+            filename = f"{SONGS_DIR}/{parts[1]}"
+            frame_offset = int(parts[2])
+        else:
+            # Normal full stream request
+            filename = f"{SONGS_DIR}/{request}"
+            frame_offset = 0
+
         try:
             wf = wave.open(filename, "rb")
         except:
@@ -41,10 +49,14 @@ def handle_client(client_socket, addr):
         props     = struct.pack("H H I", channels, sampwidth, framerate)
         client_socket.sendall(b"START" + props)
 
-        bytes_per_sec    = framerate * channels * sampwidth
-        chunk_duration   = (CHUNK * channels * sampwidth) / bytes_per_sec
+        # Seek to frame offset if partial request
+        if frame_offset > 0:
+            wf.setpos(frame_offset)
 
-        seq = 0
+        bytes_per_sec  = framerate * channels * sampwidth
+        chunk_duration = (CHUNK * channels * sampwidth) / bytes_per_sec
+
+        seq = frame_offset // CHUNK  # start seq from offset
         while True:
             data = wf.readframes(CHUNK)
             if not data:
