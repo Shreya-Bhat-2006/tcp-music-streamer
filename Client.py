@@ -7,7 +7,7 @@ from qos import QoS
 
 SERVER      = "SERVER = "10.1.4.51"
 
-PORT        = 5000
+PORT        = 5000how to  open this   in vs code like . code
 CHUNK       = 4096
 HEADER_FMT  = "I d"
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
