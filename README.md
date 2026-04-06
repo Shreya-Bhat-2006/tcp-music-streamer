@@ -28,9 +28,12 @@ streamfi/
 ├── buffer.py          # Thread-safe buffer management class
 ├── qos.py             # QoS tracking and reporting
 ├── convert_songs.py   # Utility to convert songs to WAV
-└── Songs/             # Place your .wav files here
-    ├── song1.wav
-    └── song2.wav
+├── Songs/             # Place your .wav files here
+│   ├── song1.wav
+│   └── song2.wav
+└── cache/             # Auto-created — stores cached songs locally
+    ├── song1.wav.raw  # Raw PCM audio cache
+    └── song1.wav.meta # Tracks partial download progress
 ```
 
 ---
